@@ -1,0 +1,16 @@
+CANVAS {
+    width: 80vw;
+    height: 80vh;
+    margin: auto;
+    display: block;
+}
+
+BODY {
+    background-color: black;
+}
+
+H1 {
+    color: white;
+    text-align: center;
+    font: 40pt bold monospace;
+}
