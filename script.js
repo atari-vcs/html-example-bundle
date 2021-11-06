@@ -48,20 +48,12 @@ let game = (function() {
             context.fill();
         }
 
-        function hollowRect(x, y, w, h, color) {
-            context.beginPath();
-            context.strokeStyle = color;
-            context.lineWidth = 0.002;
-            context.rect(x, y, w, h);
-            context.stroke();
-        }
-
         function drawBat(x, y, w, h) {
-            hollowRect(x - w/2, y - h/2, w, h, "white");
+            solidRect(x - w/2, y - h/2, w, h, "white");
         }
 
         function drawBall(x, y, w, h) {
-            hollowRect(x - w/2, y - h/2, w, h, "white");
+            solidRect(x - w/2, y - h/2, w, h, "white");
         }
 
         drawBat(state.left_bat.x, state.left_bat.y, state.left_bat.w, state.left_bat.h);
@@ -92,9 +84,9 @@ let game = (function() {
      * bats in their starting positions */
     function initialState() {
         const margin = 0.04;
-        const bat_width = 0.04;
-        const bat_height = 0.2;
-        const ball_size = 0.04;
+        const bat_width = 0.01;
+        const bat_height = 0.05;
+        const ball_size = 0.01;
 
         let ball_velocity = random_velocity(random(0.5, 0.8));
 
@@ -128,7 +120,7 @@ let game = (function() {
         if( controls === undefined ) {
             throw { error: "controller-disconnected" };
         }
-        const player_speed = 0.4;
+        const player_speed = 0.8;
         let move = 0;
         if( controls.stick !== undefined ) {
             move += controls.stick.y;
@@ -144,8 +136,8 @@ let game = (function() {
 
     /* Simple AI player */
     function makeAiPlayer() {
-        const ai_speed = 0.4;
-        const ai_accel = 0.1;
+        const ai_speed = 0.8;
+        const ai_accel = 0.2;
         let vy = 0;
         function update(state, dt) {
             let t = Math.abs((state.right_bat.x - state.ball.x)/state.ball.vx);
@@ -181,7 +173,7 @@ let game = (function() {
     }
 
     /* Move the ball, bouncing it off anything it hits */
-    function updateState(state, dt) {
+    function updateState(bounceCallback, state, dt) {
         const bounceSpeedUp = 1.05;
 
         state.ball.x += state.ball.vx * dt;
@@ -197,6 +189,7 @@ let game = (function() {
         function bounce_bat(ball) {
             var mag = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
             mag *= bounceSpeedUp;
+            mag = Math.min(mag, 1.2);
             let angle = Math.atan2(ball.vy, -ball.vx);
             angle += 5*(Math.random() * 2 - 1)*Math.PI/180;
             ball.vx = Math.cos(angle) * mag;
@@ -206,22 +199,22 @@ let game = (function() {
         if( checkCollision(state.left_bat, state.ball) ) {
             state.ball.x = state.left_bat.x + state.left_bat.w/2 + state.ball.w/2;
             bounce_bat(state.ball);
-            bounce.play();
+            bounceCallback(state.ball.vx, 0);
         }
         if( checkCollision(state.right_bat, state.ball) ) {
             state.ball.x = state.right_bat.x - state.right_bat.w/2 - state.ball.w/2;
             bounce_bat(state.ball);
-            bounce.play();
+            bounceCallback(state.ball.vx, 0);
         }
         if( state.ball.y < state.ball.h/2 ) {
             state.ball.y = state.ball.h/2;
             state.ball.vy *= -1;
-            bounce.play();
+            bounceCallback(0, state.ball.vy);
         }
         if( state.ball.y > 0.75 -state.ball.h/2 ) {
             state.ball.y = 0.75 - state.ball.h/2;
             state.ball.vy *= -1;
-            bounce.play();
+            bounceCallback(0, state.ball.vy);
         }
         if( state.ball.x < state.ball.w/2 ) {
             crash.play();
@@ -237,6 +230,25 @@ let game = (function() {
     /* Wrapper function to set up a single game, with a given
      * controller, and play */
     function oneGame(canvas, controller) {
+        function bounceEffects(ball_dvx, ball_dvy) {
+            if( ball_dvx > 0 ) {
+                /* If the ball is moving right across the screen, it
+                   just bounced off the player's bat */
+                /* Try to turn the ball's horizontal speed into a
+                   number between 0 and 1 for intensity. */
+                let power = (Math.log2(Math.max(0.5, Math.min(ball_dvx*5/3, 2)))+1)/2;
+                /* At low power, we use the high frequency (weak) rumble */
+                let highFrequency = 1;
+                /* At high power we switch to the low frequency (strong) rumble */
+                let lowFrequency = power;
+                /* 100ms isn't long; applying vibration for too long
+                 * is quite tiring for the user */
+                controller.vibrate(100, highFrequency, lowFrequency);
+            }
+            /* Play a sound effect whenever the ball bounces */
+            bounce.play();
+        }
+
         let aiPlayer = makeAiPlayer()
         return new Promise((resolve, reject) => {
             let state = initialState();
@@ -247,7 +259,7 @@ let game = (function() {
                     const dt = prev_ts !== undefined ? (ts - prev_ts)/1000 : 0;
                     prev_ts = ts;
 
-                    let status = updateState(state, dt);
+                    let status = updateState(bounceEffects, state, dt);
                     draw(canvas, state);
                     if( status !== undefined ) {
                         resolve(status);
