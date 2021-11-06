@@ -1,85 +1,8 @@
 let game = (function() {
-    /* Got to the point where Bluetooth breaks things */
     let bounce = new Audio('bounce.wav');
     let crash = new Audio('explosion.wav');
 
-    function readController(index) {
-        let controller = navigator.getGamepads()[index];
-        if( controller.mapping === "" ) {
-            if( controller.id.startsWith("Atari Classic") ) {
-                return {
-                    buttons: {
-                        a: controller.buttons[0],
-                        b: controller.buttons[1],
-                    },
-                    stick: {
-                        x: controller.axes[1],
-                        y: controller.axes[2]
-                    },
-                }
-            } else if (controller.id.startsWith("Atari")) {
-                return {
-                    buttons: {
-                        a: controller.buttons[0],
-                        b: controller.buttons[1],
-                        x: controller.buttons[2],
-                        y: controller.buttons[3],
-                        lb: controller.buttons[4],
-                        rb: controller.buttons[5],
-                        lsb: controller.buttons[6],
-                        rsb: controller.buttons[7]
-                    },
-                    left_stick: {
-                        x: controller.axes[0],
-                        y: controller.axes[1]
-                    },
-                    right_stick: {
-                        x: controller.axes[2],
-                        y: controller.axes[3]
-                    },
-                    dpad: {
-                        x: controller.axes[6],
-                        y: controller.axes[7]
-                    },
-                    triggers: {
-                        left: controller.axes[5],
-                        right: controller.axes[4]
-                    }
-                }
-            }
-        } else if( controller.mapping === "standard" ) {
-            return {
-                buttons: {
-                    a: controller.buttons[0],
-                    b: controller.buttons[1],
-                    x: controller.buttons[2],
-                    y: controller.buttons[3],
-                    lb: controller.buttons[4],
-                    rb: controller.buttons[5],
-                    lsb: controller.buttons[10],
-                    rsb: controller.buttons[11]
-                },
-                left_stick: {
-                    x: controller.axes[0],
-                    y: controller.axes[1]
-                },
-                right_stick: {
-                    x: controller.axes[2],
-                    y: controller.axes[3]
-                },
-                dpad: {
-                    x: (controller.buttons[15].pressed ? 1 : 0) + (controller.buttons[14].pressed ? -1 : 0),
-                    y: (controller.buttons[13].pressed ? 1 : 0) + (controller.buttons[12].pressed ? -1 : 0)
-                },
-                triggers: {
-                    left: (controller.buttons[6].pressed ? 2 : 0) - 1,
-                    right: (controller.buttons[7].pressed ? 2 : 0) - 1,
-                }
-            }
-        } else {
-            return {}
-        }
-    }
+    /* Render one frame to the canvas */
     function draw(canvas, state) {
         /* Arrange for our playfield to be between
            0 and 1 in x
@@ -119,12 +42,20 @@ let game = (function() {
             context.fill();
         }
 
+        function hollowRect(x, y, w, h, color) {
+            context.beginPath();
+            context.strokeStyle = color;
+            context.lineWidth = 0.002;
+            context.rect(x, y, w, h);
+            context.stroke();
+        }
+
         function drawBat(x, y, w, h) {
-            solidRect(x - w/2, y - h/2, w, h, "white");
+            hollowRect(x - w/2, y - h/2, w, h, "white");
         }
 
         function drawBall(x, y, w, h) {
-            solidRect(x - w/2, y - h/2, w, h, "white");
+            hollowRect(x - w/2, y - h/2, w, h, "white");
         }
 
         drawBat(state.left_bat.x, state.left_bat.y, state.left_bat.w, state.left_bat.h);
@@ -133,6 +64,7 @@ let game = (function() {
         context.restore();
     }
 
+    /* Pick a random starting velocity for the ball */
     function random_velocity(speed) {
         let angle = Math.random();
         if( angle > 0.5 ) {
@@ -150,6 +82,8 @@ let game = (function() {
         return Math.random() * (high - low) + low;
     }
 
+    /* Initialise the game state, with the ball in the middle and the
+     * bats in their starting positions */
     function initialState() {
         const margin = 0.04;
         const bat_width = 0.04;
@@ -182,22 +116,27 @@ let game = (function() {
         };
     }
 
-    function checkInput(controller_id, state, dt) {
-        let controller = readController(controller_id);
+    /* Read the controller and update the player's bat */
+    function checkInput(controller, state, dt) {
+        let controls = controller.read();
+        if( controls === undefined ) {
+            throw { error: "controller-disconnected" };
+        }
         const player_speed = 0.4;
         let move = 0;
-        if( controller.stick !== undefined ) {
-            move += controller.stick.y;
+        if( controls.stick !== undefined ) {
+            move += controls.stick.y;
         }
-        if( controller.left_stick !== undefined ) {
-            move += controller.left_stick.y;
+        if( controls.left_stick !== undefined ) {
+            move += controls.left_stick.y;
         }
-        if( controller.dpad !== undefined ) {
-            move += controller.dpad.y;
+        if( controls.dpad !== undefined ) {
+            move += controls.dpad.y;
         }
         state.left_bat.y += dt * player_speed * Math.min(1, Math.max(-1, move));
     }
 
+    /* Simple AI player */
     function makeAiPlayer() {
         const ai_speed = 0.4;
         const ai_accel = 0.1;
@@ -216,6 +155,8 @@ let game = (function() {
         };
     }
 
+    /* Check whether two rectangles intersect; used for bat/ball
+     * collisions */
     function checkCollision(r1, r2) {
         let r1x1 = r1.x - r1.w/2;
         let r1x2 = r1.x + r1.w/2;
@@ -233,6 +174,7 @@ let game = (function() {
         return test_x >= 0 && test_y >= 0;
     }
 
+    /* Move the ball, bouncing it off anything it hits */
     function updateState(state, dt) {
         const bounceSpeedUp = 1.05;
 
@@ -243,6 +185,9 @@ let game = (function() {
         state.right_bat.y = Math.max(state.right_bat.y, state.right_bat.h/2);
         state.right_bat.y = Math.min(state.right_bat.y, 0.75 - state.right_bat.h/2);
 
+        /* This function slightly increases the speed of the ball each
+           time it hits a bat, and randomises the exit angle
+           slightly. */
         function bounce_bat(ball) {
             var mag = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
             mag *= bounceSpeedUp;
@@ -283,6 +228,8 @@ let game = (function() {
         }
     }
 
+    /* Wrapper function to set up a single game, with a given
+     * controller, and play */
     function oneGame(canvas, controller) {
         let aiPlayer = makeAiPlayer()
         return new Promise((resolve, reject) => {
@@ -290,58 +237,45 @@ let game = (function() {
             let prev_ts;
 
             (function loop(ts) {
-                const dt = prev_ts !== undefined ? (ts - prev_ts)/1000 : 0;
-                prev_ts = ts;
+                try {
+                    const dt = prev_ts !== undefined ? (ts - prev_ts)/1000 : 0;
+                    prev_ts = ts;
 
-                let status = updateState(state, dt);
-                draw(canvas, state);
-                if( status !== undefined ) {
-                    resolve(status);
+                    let status = updateState(state, dt);
+                    draw(canvas, state);
+                    if( status !== undefined ) {
+                        resolve(status);
+                        return;
+                    }
+                    checkInput(controller, state, dt);
+                    aiPlayer.update(state, dt);
+
+                    window.requestAnimationFrame(loop)
+                } catch( error ) {
+                    reject(error);
                     return;
                 }
-                checkInput(controller, state, dt);
-                aiPlayer.update(state, dt);
-
-                window.requestAnimationFrame(loop)
             })();
         });
     }
 
-    function setupGamepads() {
-        let gamepads = [];
-        window.addEventListener("gamepadconnected", e => gamepads.push(e.gamepad));
-        window.addEventListener("gamepaddisconnected", e => gamepads.splice(gamepads.indexOf(e.gamepad)), 1);
+    function setupGamepadScreen() {
 
         function waitForButton(canvas) {
-            function drawInfo() {
-                let context = canvas.getContext('2d');
-                canvas.width = canvas.clientWidth;
-                canvas.height = canvas.clientHeight;
-                context.fillStyle = "black";
-                context.fillRect(0, 0, canvas.width, canvas.height);
-                context.save();
-                context.textAlign = "center";
-                context.font = "50px serif";
-                context.fillStyle = "white";
-                context.fillText("Press A on your controller",
-                                 canvas.width/2, canvas.height/2, canvas.width/2);
-                context.restore();
-            }
+            let context = canvas.getContext('2d');
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            context.fillStyle = "black";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.save();
+            context.textAlign = "center";
+            context.font = "50px serif";
+            context.fillStyle = "white";
+            context.fillText("Press A on your controller",
+                             canvas.width/2, canvas.height/2, canvas.width/2);
+            context.restore();
 
-            return new Promise((resolve, reject) => {
-                (function loop(timestamp) {
-                    drawInfo();
-                    for( var i=0; i<gamepads.length; ++i ) {
-                        let pad = readController(gamepads[i].index);
-                        if( pad.buttons.a.pressed ) {
-                            resolve(i);
-                            return;
-                        }
-                    }
-                    setTimeout(loop, 15);
-                })();
-
-            });
+            return atariControllers.pressA();
         }
         return {
             wait: waitForButton
@@ -350,11 +284,11 @@ let game = (function() {
 
     function main() {
         let canvas = document.getElementById('pong');
-        let gamepads = setupGamepads();
+        let gamepadSetupScreen = setupGamepadScreen();
         (function loop() {
-            gamepads.wait(canvas)
+            gamepadSetupScreen.wait(canvas)
                 .then(controller => oneGame(canvas, controller))
-                .then(() => setTimeout(loop, 0));
+                .finally(() => setTimeout(loop, 0));
         })();
     }
 
