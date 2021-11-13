@@ -1,3 +1,9 @@
+/*
+* Copyright 2021 Collabora, Ltd.
+*
+* SPDX-License-Identifier: MIT
+*/
+
 let game = (function() {
     let bounce = new Audio('bounce.wav');
     let crash = new Audio('explosion.wav');

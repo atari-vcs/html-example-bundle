@@ -1,5 +1,11 @@
 #!/bin/bash
 
+#
+# Copyright 2021 Collabora, Ltd.
+#
+# SPDX-License-Identifier: MIT
+#
+
 # Make a temporary directory to hold the archive
 TMPDIR=$(mktemp -d -t bundle-XXXXXXXXXXX)
 
