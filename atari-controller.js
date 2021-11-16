@@ -1,3 +1,8 @@
+/*
+* Copyright 2021 Collabora, Ltd.
+*
+* SPDX-License-Identifier: MIT
+*/
 let atariControllers = (function() {
     function findController(index) {
         let controllers = navigator.getGamepads();
