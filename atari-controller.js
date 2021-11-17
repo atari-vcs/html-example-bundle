@@ -121,11 +121,32 @@ let atariControllers = (function() {
         }
     }
 
+    function pulseController(controller, duration, intensityHigh, intensityLow) {
+        let actuator = controller.vibrationActuator;
+        if( actuator !== undefined && actuator.type === 'dual-rumble' ) {
+            actuator.playEffect(
+                'dual-rumble',
+                {
+                    duration: duration,
+                    startDelay: 0,
+                    strongMagnitude: intensityLow,
+                    weakMagnitude: intensityHigh
+                }
+            );
+        }
+    }
+
+    function isHapticController(controller) {
+        return controller.vibrationActuator !== undefined;
+    }
+
     let activeControllers = [];
 
     function makeController(index) {
         return {
-            read: () => readController(findController(index))
+            read: () => readController(findController(index)),
+            vibrate: (duration, intensityHigh, intensityLow) => pulseController(findController(index), duration, intensityHigh, intensityLow),
+            can_vibrate: () => isHapticController(findController(index))
         }
     }
 
