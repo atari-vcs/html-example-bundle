@@ -124,6 +124,7 @@ let game = (function() {
         let move = 0;
         if( controls.stick !== undefined ) {
             move += controls.stick.y;
+            move += controls.stick.twist*100;
         }
         if( controls.left_stick !== undefined ) {
             move += controls.left_stick.y;

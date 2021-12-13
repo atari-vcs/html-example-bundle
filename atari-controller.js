@@ -39,13 +39,31 @@ let atariControllers = (function() {
         }
     }
 
-    function readController(controller) {
+    function calculateTwistChange(oldTwist, newTwist)  {
+        let d1 = newTwist - oldTwist;
+        let d2 = d1 - Math.sign(d1)*2;
+        return Math.abs(d1) < Math.abs(d2) ? d1 : d2;
+    }
+
+    function readController(controller, cache) {
         let model = classifyController(controller);
         if( !model ) {
             return;
         }
+
         if( model.vendor === "Atari" ) {
             if( model.type === "joystick" ) {
+                let rc = 50;
+                let newTime = Date.now();
+                let oldTime = cache.time !== undefined ? cache.time: newTime; 
+                let newTwistRaw = controller.axes[0];
+                let oldTwist = cache.twist !== undefined ? cache.twist : newTwistRaw;
+                let dt = newTime - oldTime;
+                let a = dt / (rc + dt);
+                let newTwist = newTwistRaw * a + oldTwist * (1-a);
+                let twistDelta = calculateTwistChange(oldTwist, newTwist);
+                cache.twist = newTwist;
+                cache.time = newTime;
                 return {
                     buttons: {
                         a: controller.buttons[0],
@@ -53,10 +71,12 @@ let atariControllers = (function() {
                     },
                     stick: {
                         x: controller.axes[1],
-                        y: controller.axes[2]
+                        y: controller.axes[2],
+                        twist: twistDelta,
                     },
                     classic: true
                 }
+
             } else if( model.type == "controller" ) {
                 return {
                     buttons: {
@@ -88,6 +108,7 @@ let atariControllers = (function() {
                     classic: false
                 }
             }
+
         } else if( model.vendor === "Generic" && model.type === "controller") {
             return {
                 buttons: {
@@ -140,11 +161,21 @@ let atariControllers = (function() {
         return controller.vibrationActuator !== undefined;
     }
 
+    function makeReadController(index) {
+        var cache = {};
+        function read() {
+            let newState = readController(findController(index), cache)
+            lastState = newState;
+            return newState;
+        }
+        return read;
+    }
+
     let activeControllers = [];
 
     function makeController(index) {
         return {
-            read: () => readController(findController(index)),
+            read: makeReadController(index),
             vibrate: (duration, intensityHigh, intensityLow) => pulseController(findController(index), duration, intensityHigh, intensityLow),
             can_vibrate: () => isHapticController(findController(index))
         }
