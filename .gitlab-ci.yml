@@ -1,39 +1,8 @@
-image: $DOCKER_IMAGE
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-
-stages:
-  - buildenv
-  - build
-
-buildenv:
-  stage: buildenv
-  tags:
-    - lightweight
-  image: debian:bullseye-slim
-  script:
-    - BRANCH=${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-$CI_COMMIT_REF_NAME}
-    - REPO=${BRANCH##*/}
-    - test "${REPO}" = "vcs" && IMAGE="vcs" || IMAGE="dev"
-    - echo "DOCKER_IMAGE=registry.gitlab.collabora.com/atari/ci-package-builder/package-source-builder:atari-${IMAGE}" | tee -a build.env
-    - cat build.env
-  only:
-    refs:
-      - branches
-      - merge_requests
-  artifacts:
-      reports:
-        dotenv: build.env
+include:
+  - project: 'atari/bundle-ci'
+    file: '/bundle-ci.yml'
+    ref: 'main'
 
 build:
-  stage: build
-  tags:
-    - lightweight
   script:
-    - apt-get update
-    - apt install zip
-    - ./make_bundle.sh
-  artifacts:
-    paths:
-      - html-pong-example.bundle
-    expire_in: 1 week
+    - make-bundle.sh html-pong-example.yaml

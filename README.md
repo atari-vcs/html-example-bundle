@@ -10,9 +10,9 @@ so, go to
 
   https://atari-vcs:3030/
 
-and select `Upload`. Select the file `html-pong-example.bundle` in
-this directory. You can then launch this game, like any homebrew
-title, from the same interface.
+and select `Upload`. Select the file `html-pong-example_0.1.0.bundle`
+built from this directory. You can then launch this game, like any
+homebrew title, from the same interface.
 
 ## Gameplay
 
@@ -21,12 +21,17 @@ the screen. Press (A) to start a game.
 
 ## Building
 
-You can recreate the bundle by running
+You can create the bundle by running
 
-   `./make_bundle.sh` 
-   
-in any suitable Linux environment with `zip` installed. 
+   `make_bundle.sh html-pong-example.yaml`
 
-Alternatively, on other plaforms, you can recreate it by creating a
-new ZIP archive, and adding the contents of this directory to it. That
-archive is now your new homebrew bundle.
+in any suitable Linux-like environment with the
+[bundle-gen](https://github.com/atari-vcs/bundle-gen) script
+[`make-bundle.sh`](https://github.com/atari-vcs/bundle-gen/blob/main/make-bundle.sh)
+installed in your PATH, and Docker installed on your machine.
+
+## License
+
+This example is made available under either an
+[Apache-2.0](https://opensource.org/licenses/Apache-2.0) or an [MIT
+license](https://opensource.org/licenses/MIT). 
