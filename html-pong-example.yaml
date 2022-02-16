@@ -1,0 +1,15 @@
+Name: "Html Pong Example"
+HomebrewID: "HTMLPongExample"
+Type: Game
+Exec: res/index.html
+Launcher: chrome
+
+Build:
+  VersionFile: version.txt
+  Resources:
+    - index.html
+    - bounce.wav
+    - explosion.wav
+    - atari-controller.js
+    - style.css
+    - script.js
